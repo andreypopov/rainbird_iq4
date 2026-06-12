@@ -24,6 +24,7 @@ class RainBirdIQ4Card extends HTMLElement {
       ? String(this._config.controller_id)
       : null;
     this._rainDelayDraft = this._rainDelayDraft || {};
+    this._stationDurations = this._stationDurations || {};
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -61,21 +62,10 @@ class RainBirdIQ4Card extends HTMLElement {
     const visibleStations = stations.filter(
       (station) => !selectedController || station.controllerId === selectedController.id
     );
-    const rainDelayEntity = selectedController
-      ? this._getRainDelayEntity(selectedController.id)
-      : null;
-    const rainDelayValue =
-      selectedController && this._rainDelayDraft[selectedController.id] !== undefined
-        ? this._rainDelayDraft[selectedController.id]
-        : rainDelayEntity
-          ? rainDelayEntity.state
-          : "";
     const renderKey = this._buildRenderKey(
       stations,
       controllers,
-      selectedController,
-      rainDelayEntity,
-      rainDelayValue
+      selectedController
     );
 
     if (!force && renderKey === this._lastRenderKey) {
@@ -96,7 +86,7 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         .card {
-          padding: 0 16px 16px;
+          padding: 0 16px 18px;
         }
 
         .empty {
@@ -105,18 +95,23 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         .toolbar {
-          align-items: end;
-          display: grid;
+          align-items: center;
+          display: flex;
           gap: 12px;
-          grid-template-columns: minmax(160px, 1fr) 108px 108px auto;
-          margin: 4px 0 14px;
+          justify-content: space-between;
+          margin: 4px 0 16px;
         }
 
         .field {
           display: flex;
           flex-direction: column;
           gap: 4px;
+          flex: 1 1 auto;
           min-width: 0;
+        }
+
+        .field.controller {
+          max-width: 360px;
         }
 
         label {
@@ -127,32 +122,39 @@ class RainBirdIQ4Card extends HTMLElement {
 
         select,
         input {
-          background: var(--card-background-color);
-          border: 1px solid var(--divider-color);
-          border-radius: 6px;
+          background: var(--secondary-background-color);
+          border: 1px solid transparent;
+          border-radius: 10px;
           box-sizing: border-box;
           color: var(--primary-text-color);
           font: inherit;
-          height: 36px;
+          height: 38px;
           min-width: 0;
-          padding: 0 10px;
+          outline: none;
+          padding: 0 12px;
           width: 100%;
+        }
+
+        select:focus,
+        input:focus {
+          border-color: color-mix(in srgb, var(--primary-color) 55%, transparent);
+          box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 18%, transparent);
         }
 
         button {
           align-items: center;
           background: var(--primary-color);
           border: 0;
-          border-radius: 6px;
+          border-radius: 999px;
           color: var(--text-primary-color, white);
           cursor: pointer;
           display: inline-flex;
           font: inherit;
           font-weight: 600;
           gap: 6px;
-          height: 36px;
+          height: 38px;
           justify-content: center;
-          padding: 0 12px;
+          padding: 0 14px;
           white-space: nowrap;
         }
 
@@ -162,12 +164,12 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         button.danger {
-          background: var(--error-color, #db4437);
+          background: color-mix(in srgb, var(--error-color, #db4437) 92%, black);
           color: white;
         }
 
         button.icon {
-          min-width: 36px;
+          min-width: 38px;
           padding: 0;
         }
 
@@ -211,17 +213,25 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         .station-list {
-          border-top: 1px solid var(--divider-color);
+          display: grid;
+          gap: 10px;
         }
 
         .station {
           align-items: center;
-          border-bottom: 1px solid var(--divider-color);
+          background: color-mix(in srgb, var(--secondary-background-color) 78%, transparent);
+          border: 1px solid color-mix(in srgb, var(--divider-color) 72%, transparent);
+          border-radius: 14px;
           display: grid;
           gap: 12px;
-          grid-template-columns: minmax(0, 1fr) auto auto;
-          min-height: 56px;
-          padding: 8px 0;
+          grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+          min-height: 64px;
+          padding: 10px;
+        }
+
+        .station.is-running {
+          background: color-mix(in srgb, var(--success-color, #43a047) 12%, var(--secondary-background-color));
+          border-color: color-mix(in srgb, var(--success-color, #43a047) 32%, transparent);
         }
 
         .station-title {
@@ -240,6 +250,49 @@ class RainBirdIQ4Card extends HTMLElement {
           margin-top: 3px;
         }
 
+        .duration-control {
+          align-items: center;
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: 999px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          height: 38px;
+          min-width: 0;
+          overflow: hidden;
+          width: 100%;
+        }
+
+        .duration-control input {
+          background: transparent;
+          border: 0;
+          box-shadow: none;
+          height: 36px;
+          padding: 0 4px 0 12px;
+          text-align: right;
+        }
+
+        .duration-control span {
+          color: var(--secondary-text-color);
+          font-size: 12px;
+          padding-right: 12px;
+        }
+
+        .station-actions {
+          align-items: center;
+          display: grid;
+          grid-template-columns: minmax(150px, 1fr) auto;
+          gap: 8px;
+        }
+
+        .station button.run {
+          min-width: 74px;
+        }
+
+        .station button.stop {
+          min-width: 82px;
+        }
+
         .running {
           color: var(--success-color, #43a047);
           font-weight: 700;
@@ -247,19 +300,22 @@ class RainBirdIQ4Card extends HTMLElement {
 
         @media (max-width: 600px) {
           .toolbar {
-            grid-template-columns: 1fr 1fr;
+            align-items: stretch;
+            flex-direction: column;
           }
 
           .field.controller {
-            grid-column: 1 / -1;
+            max-width: none;
           }
 
           .station {
-            grid-template-columns: minmax(0, 1fr) auto auto;
+            align-items: stretch;
+            grid-template-columns: minmax(0, 1fr);
           }
 
-          button.stop-all {
-            grid-column: 1 / -1;
+          .station-actions {
+            display: grid;
+            grid-template-columns: minmax(92px, 1fr) auto;
           }
         }
       </style>
@@ -274,7 +330,7 @@ class RainBirdIQ4Card extends HTMLElement {
     this._bindEvents();
   }
 
-  _renderContent(controllers, selectedController, stations, rainDelayValue, rainDelayEntity) {
+  _renderContent(controllers, selectedController, stations) {
     const connectionPills = controllers
       .map(
         (controller) => `
@@ -309,28 +365,29 @@ class RainBirdIQ4Card extends HTMLElement {
     const stationRows = stations.length
       ? stations.map((station) => this._renderStation(station)).join("")
       : `<div class="empty">No stations found for this controller.</div>`;
+    const hasRunningStation = stations.some((station) => station.state === "on");
 
     return `
       <div class="status-strip">${connectionPills}</div>
-      <div class="toolbar">
-        ${controllerField}
-        <div class="field">
-          <label>Duration, min</label>
-          <input data-duration type="number" min="1" max="720" value="${this._escape(this._duration)}">
-        </div>
-        <div class="field">
-          <label>Rain delay, days</label>
-          <input data-rain-delay type="number" min="0" max="14" value="${this._escape(rainDelayValue)}" ${rainDelayEntity ? "" : "disabled"}>
-        </div>
-        <button class="secondary" data-apply-rain-delay ${rainDelayEntity ? "" : "disabled"}>
-          <ha-icon icon="mdi:weather-rainy"></ha-icon>
-          Apply
-        </button>
-        <button class="danger stop-all" data-stop-all ${selectedController ? "" : "disabled"}>
-          <ha-icon icon="mdi:stop-circle-outline"></ha-icon>
-          Stop all
-        </button>
-      </div>
+      ${
+        controllerField || hasRunningStation
+          ? `
+            <div class="toolbar">
+              ${controllerField}
+              ${
+                hasRunningStation
+                  ? `
+                    <button class="danger stop-all" data-stop-all ${selectedController ? "" : "disabled"}>
+                      <ha-icon icon="mdi:stop-circle-outline"></ha-icon>
+                      Stop all
+                    </button>
+                  `
+                  : ""
+              }
+            </div>
+          `
+          : ""
+      }
       <div class="station-list">${stationRows}</div>
     `;
   }
@@ -347,6 +404,7 @@ class RainBirdIQ4Card extends HTMLElement {
     const running = station.state === "on";
     const remaining = Number(station.attributes.remaining_seconds || 0);
     const remainingText = remaining > 0 ? `${Math.ceil(remaining / 60)} min left` : "";
+    const duration = this._durationForStation(station.stationId);
     const meta = [
       station.attributes.terminal ? `Terminal ${this._escape(station.attributes.terminal)}` : null,
       station.attributes.landscape_type ? this._escape(station.attributes.landscape_type) : null,
@@ -357,17 +415,38 @@ class RainBirdIQ4Card extends HTMLElement {
       .join("<span>•</span>");
 
     return `
-      <div class="station">
+      <div class="station ${running ? "is-running" : ""}">
         <div>
           <div class="station-title">${this._escape(station.name)}</div>
           <div class="station-meta">${meta}</div>
         </div>
-        <button class="icon" title="Start" data-start="${this._escape(station.stationId)}">
-          <ha-icon icon="mdi:play"></ha-icon>
-        </button>
-        <button class="icon secondary" title="Stop" data-stop="${this._escape(station.stationId)}" ${running ? "" : ""}>
-          <ha-icon icon="mdi:stop"></ha-icon>
-        </button>
+        <div class="station-actions">
+          ${
+            running
+              ? ""
+              : `
+                <label class="duration-control" title="Run duration in minutes">
+                  <input data-station-duration="${this._escape(station.stationId)}" type="number" min="1" max="720" inputmode="numeric" value="${this._escape(duration)}">
+                  <span>min</span>
+                </label>
+              `
+          }
+          ${
+            running
+              ? `
+                <button class="danger stop" title="Stop ${this._escape(station.name)}" data-stop="${this._escape(station.stationId)}">
+                  <ha-icon icon="mdi:stop"></ha-icon>
+                  Stop
+                </button>
+              `
+              : `
+                <button class="run" title="Run ${this._escape(station.name)}" data-start="${this._escape(station.stationId)}">
+                  <ha-icon icon="mdi:play"></ha-icon>
+                  Run
+                </button>
+              `
+          }
+        </div>
       </div>
     `;
   }
@@ -378,30 +457,6 @@ class RainBirdIQ4Card extends HTMLElement {
       this._render(true);
     });
 
-    this.shadowRoot.querySelector("[data-duration]")?.addEventListener("change", (event) => {
-      this._duration = Math.max(1, Math.min(720, Number(event.target.value || 1)));
-      event.target.value = this._duration;
-    });
-
-    this.shadowRoot.querySelector("[data-rain-delay]")?.addEventListener("change", (event) => {
-      if (!this._selectedControllerId) return;
-      this._rainDelayDraft[this._selectedControllerId] = Math.max(
-        0,
-        Math.min(14, Number(event.target.value || 0))
-      );
-      event.target.value = this._rainDelayDraft[this._selectedControllerId];
-    });
-
-    this.shadowRoot.querySelector("[data-apply-rain-delay]")?.addEventListener("click", () => {
-      if (!this._selectedControllerId) return;
-      const input = this.shadowRoot.querySelector("[data-rain-delay]");
-      const days = Math.max(0, Math.min(14, Number(input?.value || 0)));
-      this._hass.callService("rainbird_iq4", "set_rain_delay", {
-        controller_id: Number(this._selectedControllerId),
-        days,
-      });
-    });
-
     this.shadowRoot.querySelector("[data-stop-all]")?.addEventListener("click", () => {
       if (!this._selectedControllerId) return;
       this._hass.callService("rainbird_iq4", "stop_all", {
@@ -409,11 +464,27 @@ class RainBirdIQ4Card extends HTMLElement {
       });
     });
 
+    this.shadowRoot.querySelectorAll("[data-station-duration]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const stationId = input.dataset.stationDuration;
+        const duration = this._normalizeDuration(input.value);
+        this._stationDurations[stationId] = duration;
+        input.value = duration;
+      });
+    });
+
     this.shadowRoot.querySelectorAll("[data-start]").forEach((button) => {
       button.addEventListener("click", () => {
+        const stationId = button.dataset.start;
+        const input = [...this.shadowRoot.querySelectorAll("[data-station-duration]")].find(
+          (element) => element.dataset.stationDuration === stationId
+        );
+        const duration = this._normalizeDuration(input?.value);
+        this._stationDurations[stationId] = duration;
+        if (input) input.value = duration;
         this._hass.callService("rainbird_iq4", "start_station", {
-          station_id: Number(button.dataset.start),
-          duration: Number(this._duration || this._config.default_duration || 6),
+          station_id: Number(stationId),
+          duration,
         });
       });
     });
@@ -425,6 +496,16 @@ class RainBirdIQ4Card extends HTMLElement {
         });
       });
     });
+  }
+
+  _durationForStation(stationId) {
+    return this._normalizeDuration(
+      this._stationDurations?.[stationId] ?? this._config.default_duration ?? 6
+    );
+  }
+
+  _normalizeDuration(value) {
+    return Math.max(1, Math.min(720, Number(value || 1)));
   }
 
   _getStations() {
@@ -495,16 +576,7 @@ class RainBirdIQ4Card extends HTMLElement {
     });
   }
 
-  _getRainDelayEntity(controllerId) {
-    return Object.values(this._hass.states).find((state) => {
-      return (
-        state.entity_id?.startsWith("number.") &&
-        String(state.attributes.controller_id) === String(controllerId)
-      );
-    });
-  }
-
-  _buildRenderKey(stations, controllers, selectedController, rainDelayEntity, rainDelayValue) {
+  _buildRenderKey(stations, controllers, selectedController) {
     return JSON.stringify({
       config: this._config,
       selectedControllerId: selectedController?.id || null,
@@ -524,9 +596,6 @@ class RainBirdIQ4Card extends HTMLElement {
         controller.name,
         controller.connected,
       ]),
-      rainDelay: rainDelayEntity
-        ? [rainDelayEntity.entity_id, rainDelayEntity.state, rainDelayValue]
-        : null,
     });
   }
 
@@ -694,5 +763,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "rainbird-iq4-card",
   name: "Rain Bird IQ4",
-  description: "Control Rain Bird IQ4 stations, rain delay, and stop-all from one card.",
+  description: "Control Rain Bird IQ4 stations with per-zone durations, rain delay, and stop-all.",
 });

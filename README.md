@@ -115,10 +115,9 @@ The card can:
 
 - Auto-discover Rain Bird IQ4 station switches.
 - Select a controller.
-- Set the manual run duration.
+- Set a run duration per station right next to the station.
 - Start or stop individual stations.
-- Stop all irrigation for the selected controller.
-- View and apply rain delay.
+- Stop all irrigation for the selected controller when any station is running.
 - Show controller connection status.
 
 ### Add The Card Resource
@@ -160,6 +159,8 @@ title: Garden irrigation
 auto: true
 default_duration: 10
 ```
+
+`default_duration` is the initial minute value shown for each station. You can change the minutes per station directly on the card before starting it.
 
 The card auto-discovers station switches created by this integration. For a fixed list of stations, use:
 
@@ -263,6 +264,8 @@ Open the entity details in Home Assistant. Station switches expose these attribu
 - `sprinkler_type`
 
 The rain delay number and connection binary sensor belong to the controller device.
+
+Rain delay is exposed as a standard Home Assistant number entity and service for automations or rare manual overrides. The bundled card keeps it out of the main day-to-day controls so rain-sensor behavior and manual station starts stay clear.
 
 ## Troubleshooting
 
