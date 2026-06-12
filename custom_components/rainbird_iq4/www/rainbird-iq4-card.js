@@ -39,7 +39,7 @@ class RainBirdIQ4Card extends HTMLElement {
     return Math.max(3, Math.min(8, stations.length + 3));
   }
 
-  _render() {
+  _render(force = false) {
     if (!this.shadowRoot || !this._hass) return;
 
     const stations = this._getStations();
@@ -70,6 +70,24 @@ class RainBirdIQ4Card extends HTMLElement {
         : rainDelayEntity
           ? rainDelayEntity.state
           : "";
+    const renderKey = this._buildRenderKey(
+      stations,
+      controllers,
+      selectedController,
+      rainDelayEntity,
+      rainDelayValue
+    );
+
+    if (!force && renderKey === this._lastRenderKey) {
+      return;
+    }
+
+    if (!force && this._isEditingControl()) {
+      this._scheduleDeferredRender();
+      return;
+    }
+
+    this._lastRenderKey = renderKey;
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -350,7 +368,7 @@ class RainBirdIQ4Card extends HTMLElement {
   _bindEvents() {
     this.shadowRoot.querySelector("[data-controller]")?.addEventListener("change", (event) => {
       this._selectedControllerId = event.target.value;
-      this._render();
+      this._render(true);
     });
 
     this.shadowRoot.querySelector("[data-duration]")?.addEventListener("change", (event) => {
@@ -477,6 +495,48 @@ class RainBirdIQ4Card extends HTMLElement {
         String(state.attributes.controller_id) === String(controllerId)
       );
     });
+  }
+
+  _buildRenderKey(stations, controllers, selectedController, rainDelayEntity, rainDelayValue) {
+    return JSON.stringify({
+      config: this._config,
+      selectedControllerId: selectedController?.id || null,
+      stations: stations.map((station) => [
+        station.entityId,
+        station.state,
+        station.name,
+        station.stationId,
+        station.controllerId,
+        station.attributes.terminal,
+        station.attributes.landscape_type,
+        station.attributes.sprinkler_type,
+        station.attributes.remaining_seconds,
+      ]),
+      controllers: controllers.map((controller) => [
+        controller.id,
+        controller.name,
+        controller.connected,
+      ]),
+      rainDelay: rainDelayEntity
+        ? [rainDelayEntity.entity_id, rainDelayEntity.state, rainDelayValue]
+        : null,
+    });
+  }
+
+  _isEditingControl() {
+    const activeElement = this.shadowRoot?.activeElement;
+    return activeElement?.matches?.("select, input, textarea") || false;
+  }
+
+  _scheduleDeferredRender() {
+    clearTimeout(this._deferredRenderTimer);
+    this._deferredRenderTimer = setTimeout(() => {
+      if (this._isEditingControl()) {
+        this._scheduleDeferredRender();
+        return;
+      }
+      this._render(true);
+    }, 250);
   }
 
   _escape(value) {
