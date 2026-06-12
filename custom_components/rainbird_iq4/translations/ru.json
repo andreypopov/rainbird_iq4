@@ -36,6 +36,7 @@
     },
     "abort": {
       "already_configured": "Этот аккаунт Rain Bird IQ4 уже настроен.",
+      "reconfigure_successful": "Browser token Rain Bird IQ4 обновлён.",
       "reauth_successful": "Browser token Rain Bird IQ4 обновлён."
     }
   },

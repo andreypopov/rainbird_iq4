@@ -36,6 +36,7 @@
     },
     "abort": {
       "already_configured": "This Rain Bird IQ4 account is already configured.",
+      "reconfigure_successful": "Rain Bird IQ4 browser token was updated.",
       "reauth_successful": "Rain Bird IQ4 browser token was updated."
     }
   },

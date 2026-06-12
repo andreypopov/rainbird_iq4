@@ -193,6 +193,13 @@ class RainBirdIQ4ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._username_hint = entry_data.get(CONF_USERNAME)
         return await self.async_step_browser_token()
 
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+        self._reauth_entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        if self._reauth_entry is not None:
+            self._entry_name = self._reauth_entry.data.get(CONF_NAME, DEFAULT_NAME)
+            self._username_hint = self._reauth_entry.data.get(CONF_USERNAME)
+        return await self.async_step_browser_token(user_input)
+
     async def _async_finish_token_flow(self, token: str):
         token_expiration = jwt_expiration(token)
         token_identity = jwt_identity(token) or self._username_hint
@@ -217,6 +224,8 @@ class RainBirdIQ4ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
             await self.hass.config_entries.async_reload(self._reauth_entry.entry_id)
             self._clear_token_session()
+            if self.context.get("source") == config_entries.SOURCE_RECONFIGURE:
+                return self.async_abort(reason="reconfigure_successful")
             return self.async_abort(reason="reauth_successful")
 
         await self.async_set_unique_id((token_identity or self._entry_name).lower())
