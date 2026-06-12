@@ -21,8 +21,12 @@ from .const import (
     ATTR_DURATION,
     ATTR_IS_GROUP_START,
     ATTR_STATION_ID,
+    AUTH_METHOD_TOKEN,
+    CONF_ACCESS_TOKEN,
+    CONF_AUTH_METHOD,
     CONF_DEFAULT_DURATION,
     CONF_SCAN_INTERVAL,
+    CONF_TOKEN_EXPIRES_AT,
     DATA_CLIENT,
     DATA_COORDINATOR,
     DEFAULT_DURATION_MINUTES,
@@ -64,13 +68,24 @@ SET_RAIN_DELAY_SCHEMA = vol.Schema(
 )
 
 
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Set up global Rain Bird IQ4 helpers."""
+    await async_register_frontend(hass)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Rain Bird IQ4 from a config entry."""
     session = async_get_clientsession(hass)
+    uses_browser_token = entry.data.get(CONF_AUTH_METHOD) == AUTH_METHOD_TOKEN or bool(
+        entry.data.get(CONF_ACCESS_TOKEN)
+    )
     client = IQ4Client(
         session,
-        entry.data[CONF_USERNAME],
-        entry.data[CONF_PASSWORD],
+        entry.data.get(CONF_USERNAME),
+        None if uses_browser_token else entry.data.get(CONF_PASSWORD),
+        access_token=entry.data.get(CONF_ACCESS_TOKEN),
+        token_expiration=entry.data.get(CONF_TOKEN_EXPIRES_AT),
     )
     interval_minutes = int(entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_MINUTES))
     coordinator = RainBirdIQ4Coordinator(

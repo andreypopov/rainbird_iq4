@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import binascii
 import json as jsonlib
 import logging
 import random
@@ -12,7 +13,7 @@ import secrets
 import string
 import time
 from typing import Any
-from urllib.parse import urlencode, urljoin
+from urllib.parse import unquote, urlencode, urljoin
 
 import aiohttp
 
@@ -26,7 +27,8 @@ SCOPE = "coreAPI.read coreAPI.write openid profile"
 RESPONSE_TYPE = "id_token token"
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
-TOKEN_RE = re.compile(r"access_token=([^&\"#]+)")
+TOKEN_RE = re.compile(r"access_token=([^&\"#\s]+)")
+JWT_RE = re.compile(r"^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?$")
 ANTIFORGERY_RE = re.compile(
     r'name="__RequestVerificationToken"[^>]*value="([^"]+)"'
     r'|value="([^"]+)"[^>]*name="__RequestVerificationToken"',
@@ -40,6 +42,10 @@ class IQ4Error(Exception):
 
 class IQ4AuthError(IQ4Error):
     """Authentication failed."""
+
+
+class IQ4TokenExpiredError(IQ4AuthError):
+    """A manually supplied IQ4 access token expired."""
 
 
 class IQ4CannotConnectError(IQ4Error):
@@ -64,13 +70,75 @@ def _random_browser_uuid() -> str:
     return "-".join("".join(random.choice(alphabet) for _ in range(part)) for part in parts)
 
 
-def _extract_access_token(value: str | None) -> str | None:
+def build_browser_authorization_url() -> str:
+    """Return a Rain Bird login URL that ends at a browser-visible access token."""
+    return_url = _build_authorize_return_url(_random_hex(), _random_hex())
+    return f"{AUTH_BASE}/Account/Login?{urlencode({'ReturnUrl': return_url})}"
+
+
+def extract_access_token(value: str | None) -> str | None:
+    """Extract a bearer token from a pasted callback URL or raw JWT value."""
     if not value:
         return None
+    value = value.strip()
+    if JWT_RE.fullmatch(value):
+        return value
     match = TOKEN_RE.search(value)
     if match:
-        return match.group(1)
+        return unquote(match.group(1))
     return None
+
+
+def jwt_expiration(token: str) -> int | None:
+    """Return the Unix expiration timestamp from a JWT, if present."""
+    data = jwt_payload(token)
+    exp = data.get("exp")
+    return int(exp) if isinstance(exp, (int, float)) else None
+
+
+def jwt_identity(token: str) -> str | None:
+    """Return the most stable account identifier available in a JWT."""
+    data = jwt_payload(token)
+    for key in ("email", "preferred_username", "name", "sub"):
+        value = data.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def jwt_payload(token: str) -> dict[str, Any]:
+    """Decode the payload portion of a JWT without validating its signature."""
+    parts = token.split(".")
+    if len(parts) < 2:
+        return {}
+    payload = parts[1]
+    payload += "=" * (-len(payload) % 4)
+    try:
+        decoded = base64.urlsafe_b64decode(payload.encode())
+        data = jsonlib.loads(decoded)
+    except (binascii.Error, UnicodeDecodeError, ValueError, jsonlib.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _build_authorize_return_url(state: str, nonce: str) -> str:
+    return (
+        "/coreidentityserver/connect/authorize/callback?"
+        + urlencode(
+            {
+                "client_id": CLIENT_ID,
+                "redirect_uri": REDIRECT_URI,
+                "response_type": RESPONSE_TYPE,
+                "scope": SCOPE,
+                "state": state,
+                "nonce": nonce,
+            }
+        )
+    )
+
+
+def _extract_access_token(value: str | None) -> str | None:
+    return extract_access_token(value)
 
 
 def _extract_antiforgery_token(html: str) -> str | None:
@@ -81,53 +149,43 @@ def _extract_antiforgery_token(html: str) -> str | None:
 
 
 def _jwt_expiration(token: str) -> int | None:
-    parts = token.split(".")
-    if len(parts) < 2:
-        return None
-    payload = parts[1]
-    payload += "=" * (-len(payload) % 4)
-    try:
-        decoded = base64.urlsafe_b64decode(payload.encode())
-        data = jsonlib.loads(decoded)
-    except (ValueError, jsonlib.JSONDecodeError):
-        return None
-    exp = data.get("exp")
-    return int(exp) if isinstance(exp, (int, float)) else None
+    return jwt_expiration(token)
 
 
 class IQ4Client:
     """Small async client for the Rain Bird IQ4 cloud API."""
 
-    def __init__(self, session: aiohttp.ClientSession, username: str, password: str) -> None:
+    def __init__(
+        self,
+        session: aiohttp.ClientSession,
+        username: str | None = None,
+        password: str | None = None,
+        *,
+        access_token: str | None = None,
+        token_expiration: int | None = None,
+    ) -> None:
         self._session = session
         self._username = username
         self._password = password
-        self._token: str | None = None
-        self._token_expiration: int | None = None
+        self._token = access_token
+        self._token_expiration = token_expiration or (
+            _jwt_expiration(access_token) if access_token else None
+        )
         self._browser_tab_uuid = _random_browser_uuid()
 
     async def async_validate(self) -> None:
         """Validate credentials and API access."""
-        await self.async_authenticate()
+        await self._ensure_token()
         await self.get_controllers()
 
     async def async_authenticate(self) -> str:
         """Authenticate with IQ4 and return a bearer token."""
+        if not self._username or not self._password:
+            raise IQ4TokenExpiredError("Rain Bird IQ4 browser token expired or was rejected")
+
         state = _random_hex()
         nonce = _random_hex()
-        return_url = (
-            "/coreidentityserver/connect/authorize/callback?"
-            + urlencode(
-                {
-                    "client_id": CLIENT_ID,
-                    "redirect_uri": REDIRECT_URI,
-                    "response_type": RESPONSE_TYPE,
-                    "scope": SCOPE,
-                    "state": state,
-                    "nonce": nonce,
-                }
-            )
-        )
+        return_url = _build_authorize_return_url(state, nonce)
         login_url = f"{AUTH_BASE}/Account/Login?{urlencode({'ReturnUrl': return_url})}"
 
         timeout = aiohttp.ClientTimeout(total=45)
@@ -225,6 +283,8 @@ class IQ4Client:
     async def _ensure_token(self) -> str:
         if self._token_valid():
             return self._token or ""
+        if not self._username or not self._password:
+            raise IQ4TokenExpiredError("Rain Bird IQ4 browser token expired")
         return await self.async_authenticate()
 
     async def _api_request(
@@ -262,6 +322,8 @@ class IQ4Client:
                 if response.status in (401, 403) and retry_auth:
                     self._token = None
                     self._token_expiration = None
+                    if not self._username or not self._password:
+                        raise IQ4TokenExpiredError("Rain Bird IQ4 browser token was rejected")
                     return await self._api_request(
                         method,
                         path,
@@ -340,4 +402,3 @@ class IQ4Client:
             "POST",
             f"/ManualOps/SendRainDelay?satelliteId={controller_id}&days={days}",
         )
-

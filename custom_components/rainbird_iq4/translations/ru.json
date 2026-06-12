@@ -3,22 +3,40 @@
     "step": {
       "user": {
         "title": "Rain Bird IQ4",
-        "description": "Войдите с логином и паролем аккаунта Rain Bird 2.0 / IQ4. Это не 6-значный PIN контроллера.",
+        "description": "Выберите, как Home Assistant будет подключаться к Rain Bird IQ4. Browser token лучше подходит, когда вход по паролю блокируется AWS WAF.",
         "data": {
           "name": "Название",
+          "auth_method": "Способ входа"
+        }
+      },
+      "password": {
+        "title": "Аккаунт Rain Bird IQ4",
+        "description": "Войдите с логином и паролем аккаунта Rain Bird 2.0 / IQ4. Это не 6-значный PIN контроллера. Если Rain Bird потребует браузерную проверку, следующий экран предложит вход через browser token.",
+        "data": {
           "username": "Логин",
           "password": "Пароль"
+        }
+      },
+      "browser_token": {
+        "title": "Browser token Rain Bird IQ4",
+        "description": "1. Откройте [Rain Bird token helper]({token_helper_url}).\n2. Перетащите bookmarklet из helper в панель закладок браузера.\n3. Через helper откройте Rain Bird login и войдите как обычно.\n4. Когда загрузится веб-приложение Rain Bird, нажмите bookmarklet. Helper сохранит токен в эту setup-сессию Home Assistant.\n5. Вернитесь сюда и нажмите Submit. Поле ниже можно оставить пустым.\n\nЗапасной вариант: вставьте финальный URL Rain Bird вида `https://iq4.rainbird.com/auth.html#...` или raw-значение `access_token` ниже.",
+        "data": {
+          "token_or_callback_url": "Финальный URL Rain Bird или access token"
         }
       }
     },
     "error": {
       "cannot_connect": "Не удалось подключиться к Rain Bird IQ4.",
-      "invalid_auth": "Rain Bird IQ4 отклонил логин или пароль.",
-      "waf_challenge": "Rain Bird IQ4 вернул браузерную проверку AWS WAF. Попробуйте позже или из другой сети.",
+      "invalid_auth": "Rain Bird IQ4 отклонил логин, пароль или токен.",
+      "invalid_token": "Не нашёл access token. Вставьте полный финальный URL Rain Bird или raw-значение access_token.",
+      "token_missing": "Токен ещё не получен. Откройте token helper, отправьте токен из Rain Bird и попробуйте Submit снова.",
+      "token_expired": "Этот access token уже истёк. Откройте ссылку Rain Bird login ещё раз и вставьте новый финальный URL.",
+      "waf_challenge": "Rain Bird IQ4 вернул браузерную проверку AWS WAF. Используйте вход через browser token.",
       "unknown": "Неожиданная ошибка."
     },
     "abort": {
-      "already_configured": "Этот аккаунт Rain Bird IQ4 уже настроен."
+      "already_configured": "Этот аккаунт Rain Bird IQ4 уже настроен.",
+      "reauth_successful": "Browser token Rain Bird IQ4 обновлён."
     }
   },
   "options": {
@@ -33,4 +51,3 @@
     }
   }
 }
-

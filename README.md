@@ -23,7 +23,7 @@ This project is unofficial and is not affiliated with Rain Bird.
 - This uses an undocumented IQ4 cloud API observed from the IQ4 web app. Rain Bird can change it at any time.
 - It needs internet access and your Rain Bird account credentials. It is not local control.
 - Station switch state is best-effort. The integration tracks runs started from Home Assistant and polls controller data, but IQ4 may not expose every manual run state consistently.
-- Rain Bird login can sometimes be protected by an AWS WAF browser challenge. If setup fails with a WAF error, try again later or from a different network.
+- Rain Bird login can sometimes be protected by an AWS WAF browser challenge. The recommended setup method is **Browser token**, where a helper page lets your normal browser sign in and send the token back to Home Assistant.
 - The password requested by this integration is your Rain Bird 2.0 / IQ4 account password, not the 6 digit controller PIN used by the mobile app.
 
 ## Install With HACS
@@ -67,10 +67,43 @@ The integration ships Home Assistant brand assets in `custom_components/rainbird
 1. In Home Assistant, go to **Settings -> Devices & services**.
 2. Click **Add integration**.
 3. Search for **Rain Bird IQ4**.
-4. Enter your Rain Bird 2.0 / IQ4 account username and password.
-5. Submit the form.
+4. Choose **Browser token**.
+5. Open the **Rain Bird token helper** link shown by Home Assistant.
+6. Drag the **Send Rain Bird token to HA** bookmarklet from the helper page to your browser bookmarks bar.
+7. Click **Open Rain Bird login** on the helper page.
+8. Sign in with your Rain Bird 2.0 / IQ4 account. This is not the 6 digit controller PIN used by the mobile app.
+9. Let Rain Bird finish loading, even if it quickly redirects away from the blank auth page.
+10. Click the **Send Rain Bird token to HA** bookmarklet while you are on the Rain Bird web app.
+11. Return to the Home Assistant setup dialog and click **Submit**. You can leave the token field empty.
+
+The helper is there because Rain Bird often redirects away from the token URL too quickly to copy it manually.
+
+Fallback: if you do catch the URL, paste the full address into the Home Assistant form. It usually starts with:
+
+   ```text
+   https://iq4.rainbird.com/auth.html#
+   ```
+
+You can also paste only the `access_token` value if you know how to extract it.
 
 After setup, each IQ4 controller should appear as a device with its stations and rain delay control.
+
+### Username And Password Setup
+
+The integration still supports direct username/password setup, but Rain Bird may block server-side login with an AWS WAF browser challenge. If that happens, Home Assistant will ask you to reconfigure the integration with a browser token.
+
+### Updating An Expired Token
+
+Rain Bird browser tokens can expire. When that happens, Home Assistant marks the integration as needing attention:
+
+1. Open **Settings -> Devices & services**.
+2. Open **Rain Bird IQ4**.
+3. Click **Reconfigure**.
+4. Open the token helper link.
+5. Use the bookmarklet on the Rain Bird web app.
+6. Return to the Home Assistant dialog and click **Submit**.
+
+Home Assistant stores the token in the integration config entry, the same place it stores other integration credentials.
 
 ## Dashboard Card
 
@@ -239,7 +272,7 @@ Check that you are using the Rain Bird account username and password for the Rai
 
 ### WAF challenge
 
-Rain Bird sometimes protects the IQ4 login with a browser JavaScript challenge. Home Assistant cannot solve that challenge. Try again later, or try from a different network. If Rain Bird changes the login flow permanently, this integration will need an update.
+Rain Bird sometimes protects IQ4 login with a browser JavaScript challenge. Home Assistant cannot and should not solve that challenge server-side. Use **Browser token** setup instead: your browser completes the Rain Bird login, the helper captures the resulting `access_token`, and Home Assistant uses that token for API calls.
 
 ### No stations appear
 

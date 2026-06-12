@@ -9,9 +9,17 @@ DOMAIN = "rainbird_iq4"
 DATA_CLIENT = "client"
 DATA_COORDINATOR = "coordinator"
 DATA_FRONTEND_REGISTERED = "frontend_registered"
+DATA_TOKEN_SESSIONS = "token_sessions"
 
 CONF_DEFAULT_DURATION = "default_duration"
 CONF_SCAN_INTERVAL = "scan_interval"
+CONF_AUTH_METHOD = "auth_method"
+CONF_ACCESS_TOKEN = "access_token"
+CONF_TOKEN_EXPIRES_AT = "token_expires_at"
+CONF_TOKEN_INPUT = "token_or_callback_url"
+
+AUTH_METHOD_PASSWORD = "password"
+AUTH_METHOD_TOKEN = "browser_token"
 
 DEFAULT_NAME = "Rain Bird IQ4"
 DEFAULT_DURATION_MINUTES = 6
@@ -34,3 +42,4 @@ ATTR_DAYS = "days"
 MANUFACTURER = "Rain Bird"
 FRONTEND_URL_PATH = "/rainbird_iq4_static"
 CARD_FILENAME = "rainbird-iq4-card.js"
+TOKEN_HELPER_FILENAME = "token-helper.html"

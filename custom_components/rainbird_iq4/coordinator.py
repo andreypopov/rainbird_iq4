@@ -65,11 +65,11 @@ class RainBirdIQ4Coordinator(DataUpdateCoordinator[RainBirdIQ4Data]):
                 return_exceptions=True,
             )
         except IQ4AuthError as err:
-            raise ConfigEntryAuthFailed("Rain Bird IQ4 rejected the username or password") from err
+            raise ConfigEntryAuthFailed(str(err)) from err
         except IQ4WafChallengeError as err:
-            raise UpdateFailed(
+            raise ConfigEntryAuthFailed(
                 "Rain Bird IQ4 login is protected by an AWS WAF browser challenge; "
-                "Home Assistant will retry later"
+                "reconfigure the integration with a browser token"
             ) from err
         except IQ4Error as err:
             raise UpdateFailed(str(err)) from err
