@@ -946,19 +946,16 @@ class RainBirdIQ4Card extends HTMLElement {
     });
 
     this.shadowRoot.querySelectorAll("[data-start]").forEach((button) => {
+      button.addEventListener("pointerdown", () => {
+        button.dataset.pointerStarted = "true";
+        this._handleStartButton(button);
+      });
+
       button.addEventListener("click", () => {
-        try {
-          const station = this._stationByKey(button.dataset.start);
-          if (!station) return;
-          const input = this._durationInputForStation(station.key);
-          const duration = this._normalizeDuration(input?.value, station);
-          this._stationDurations[station.key] = duration;
-          if (input) input.value = duration;
-          this._startStation(station, duration);
-        } catch (error) {
-          this._actionError = error?.message || String(error || "Could not start zone");
-          this._render(true);
+        if (button.dataset.pointerStarted === "true") {
+          return;
         }
+        this._handleStartButton(button);
       });
     });
 
@@ -970,11 +967,27 @@ class RainBirdIQ4Card extends HTMLElement {
     });
   }
 
+  _handleStartButton(button) {
+    try {
+      const station = this._stationByKey(button.dataset.start);
+      if (!station || this._stationNeedsStop(station)) return;
+      const input = this._durationInputForStation(station.key);
+      const duration = this._normalizeDuration(input?.value, station);
+      this._stationDurations[station.key] = duration;
+      if (input) input.value = duration;
+      this._startStation(station, duration);
+    } catch (error) {
+      this._actionError = error?.message || String(error || "Could not start zone");
+      this._render(true);
+    }
+  }
+
   _startStation(station, duration) {
     this._setStationAction(station, {
       type: "starting",
       duration,
       requestedAt: Date.now(),
+      settleUntil: Date.now() + 12000,
       expiresAt: Date.now() + duration * 60000 + 45000,
     });
     this._render(true);
@@ -988,6 +1001,7 @@ class RainBirdIQ4Card extends HTMLElement {
             type: "running",
             duration,
             requestedAt: Date.now(),
+            settleUntil: Date.now() + 20000,
             expiresAt: Date.now() + duration * 60000 + 45000,
           });
           this._refreshControllerById(station.controllerId);
@@ -1005,6 +1019,7 @@ class RainBirdIQ4Card extends HTMLElement {
           type: "running",
           duration,
           requestedAt: Date.now(),
+          settleUntil: Date.now() + 20000,
           expiresAt: Date.now() + duration * 60000 + 45000,
         });
         this._refreshControllerById(station.controllerId);
@@ -1017,6 +1032,7 @@ class RainBirdIQ4Card extends HTMLElement {
     this._setStationAction(station, {
       type: "stopping",
       requestedAt: Date.now(),
+      settleUntil: Date.now() + 6000,
       expiresAt: Date.now() + 45000,
     });
     this._render(true);
@@ -1400,8 +1416,12 @@ class RainBirdIQ4Card extends HTMLElement {
     const stations = new Map(this._getStations().map((station) => [station.key, station]));
     Object.entries(this._stationActions).forEach(([key, action]) => {
       const station = stations.get(key);
-      if (!station || (action.expiresAt && Date.now() > action.expiresAt)) {
+      const now = Date.now();
+      if (!station || (action.expiresAt && now > action.expiresAt)) {
         delete this._stationActions[key];
+        return;
+      }
+      if (action.settleUntil && now < action.settleUntil) {
         return;
       }
       if ((action.type === "starting" || action.type === "running") && this._isStationRunning(station)) {
@@ -1547,6 +1567,7 @@ class RainBirdIQ4Card extends HTMLElement {
         action.type,
         action.duration,
         action.requestedAt,
+        action.settleUntil,
         action.expiresAt,
         action.message,
       ]),
