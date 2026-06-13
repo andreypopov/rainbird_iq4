@@ -294,18 +294,16 @@ class RainBirdIQ4Card extends HTMLElement {
 
         .station,
         .program {
-          align-items: center;
           background: color-mix(in srgb, var(--secondary-background-color) 76%, transparent);
           border: 1px solid color-mix(in srgb, var(--divider-color) 72%, transparent);
           border-radius: 8px;
           display: grid;
-          gap: 14px;
           min-width: 0;
           padding: 12px;
         }
 
         .station {
-          grid-template-columns: minmax(0, 1fr) max-content;
+          grid-template-columns: minmax(0, 1fr);
         }
 
         .station.is-running {
@@ -324,14 +322,28 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         .station-main {
-          align-items: center;
+          align-items: start;
           display: grid;
-          gap: 10px;
+          gap: 12px;
           grid-template-columns: 34px minmax(0, 1fr);
           min-width: 0;
         }
 
         .station-main > div:last-child {
+          min-width: 0;
+        }
+
+        .station-body {
+          display: grid;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .station-head {
+          align-items: center;
+          display: grid;
+          gap: 12px;
+          grid-template-columns: minmax(0, 1fr) max-content;
           min-width: 0;
         }
 
@@ -359,6 +371,7 @@ class RainBirdIQ4Card extends HTMLElement {
           font-size: 15px;
           font-weight: 700;
           line-height: 20px;
+          min-width: 0;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
@@ -371,7 +384,11 @@ class RainBirdIQ4Card extends HTMLElement {
           font-size: 12px;
           gap: 6px 9px;
           line-height: 17px;
-          margin-top: 2px;
+          min-width: 0;
+        }
+
+        .meta.last-run {
+          color: color-mix(in srgb, var(--secondary-text-color) 82%, transparent);
         }
 
         .meta .running {
@@ -400,6 +417,7 @@ class RainBirdIQ4Card extends HTMLElement {
           gap: 8px;
           grid-template-columns: 96px auto;
           justify-content: end;
+          min-width: 0;
         }
 
         .station-actions button {
@@ -509,7 +527,6 @@ class RainBirdIQ4Card extends HTMLElement {
 
           .station,
           .program {
-            align-items: stretch;
             grid-template-columns: minmax(0, 1fr);
           }
 
@@ -520,19 +537,29 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         @media (max-width: 420px) {
+          .station-head {
+            gap: 10px;
+          }
+
           .station-actions {
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: 82px auto;
+          }
+
+          .duration {
+            grid-template-columns: 40px auto;
+            min-width: 82px;
+            width: 82px;
           }
 
           .station-actions button {
-            width: 100%;
+            min-width: 64px;
+            padding: 0 11px;
           }
         }
 
         @container (max-width: 560px) {
           .station,
           .program {
-            align-items: stretch;
             grid-template-columns: minmax(0, 1fr);
           }
 
@@ -543,12 +570,27 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         @container (max-width: 360px) {
+          .station-main {
+            gap: 10px;
+          }
+
+          .station-head {
+            gap: 8px;
+          }
+
           .station-actions {
-            grid-template-columns: minmax(0, 1fr);
+            grid-template-columns: 82px auto;
+          }
+
+          .duration {
+            grid-template-columns: 40px auto;
+            min-width: 82px;
+            width: 82px;
           }
 
           .station-actions button {
-            width: 100%;
+            min-width: 64px;
+            padding: 0 11px;
           }
         }
       </style>
@@ -743,7 +785,7 @@ class RainBirdIQ4Card extends HTMLElement {
     const maxDuration = this._maxDurationForStation(station);
     const remaining = this._stationRemaining(station, action);
     const last = this._formatLastRun(station.attributes.last_run_completed || station.attributes.last_run);
-    const meta = [
+    const statusMeta = [
       station.terminal ? `Terminal ${station.terminal}` : null,
       starting ? `<span class="pending">Starting...</span>` : null,
       stopping ? `<span class="pending">Stopping...</span>` : null,
@@ -753,60 +795,66 @@ class RainBirdIQ4Card extends HTMLElement {
       paused ? `<span class="paused">Paused</span>` : null,
       !running && !paused && !disabled && !stopping && !starting ? "Idle" : null,
       disabled ? this._humanState(station.state) : null,
-      last ? `Last ${this._escape(last)}` : null,
     ]
       .filter(Boolean)
       .join("<span>•</span>");
+    const lastMeta = last ? `Last ${this._escape(last)}` : "";
+    const actions = `
+      <div class="station-actions">
+        ${
+          this._stationNeedsStop(station) || starting || stopping
+            ? ""
+            : `
+              <label class="duration" title="Run duration in minutes">
+                <input data-station-duration="${this._escape(station.key)}" type="number" min="1" max="${maxDuration}" inputmode="numeric" value="${this._escape(duration)}" ${disabled || actionError ? "disabled" : ""}>
+                <span>min</span>
+              </label>
+            `
+        }
+        ${
+          stopping
+            ? `
+              <button class="danger" title="Stopping ${this._escape(station.name)}" disabled>
+                <ha-icon class="spin" icon="mdi:loading"></ha-icon>
+                Stopping
+              </button>
+            `
+            : starting
+              ? `
+                <button title="Starting ${this._escape(station.name)}" disabled>
+                  <ha-icon class="spin" icon="mdi:loading"></ha-icon>
+                  Starting
+                </button>
+              `
+              : this._stationNeedsStop(station)
+            ? `
+              <button class="danger" title="Stop ${this._escape(station.name)}" data-stop="${this._escape(station.key)}">
+                <ha-icon icon="mdi:stop"></ha-icon>
+                Stop
+              </button>
+            `
+            : `
+              <button title="Run ${this._escape(station.name)}" data-start="${this._escape(station.key)}" ${disabled || actionError ? "disabled" : ""}>
+                <ha-icon icon="mdi:play"></ha-icon>
+                Run
+              </button>
+            `
+        }
+      </div>
+    `;
 
     return `
       <div class="station ${running ? "is-running" : ""} ${paused ? "is-paused" : ""} ${starting || stopping ? "is-pending" : ""}">
         <div class="station-main">
           <div class="terminal">${this._escape(station.terminal || "-")}</div>
-          <div>
-            <div class="station-name">${this._escape(station.name)}</div>
-            <div class="meta">${meta}</div>
+          <div class="station-body">
+            <div class="station-head">
+              <div class="station-name">${this._escape(station.name)}</div>
+              ${actions}
+            </div>
+            <div class="meta">${statusMeta}</div>
+            ${lastMeta ? `<div class="meta last-run">${lastMeta}</div>` : ""}
           </div>
-        </div>
-        <div class="station-actions">
-          ${
-            this._stationNeedsStop(station) || starting || stopping
-              ? ""
-              : `
-                <label class="duration" title="Run duration in minutes">
-                  <input data-station-duration="${this._escape(station.key)}" type="number" min="1" max="${maxDuration}" inputmode="numeric" value="${this._escape(duration)}" ${disabled || actionError ? "disabled" : ""}>
-                  <span>min</span>
-                </label>
-              `
-          }
-          ${
-            stopping
-              ? `
-                <button class="danger" title="Stopping ${this._escape(station.name)}" disabled>
-                  <ha-icon class="spin" icon="mdi:loading"></ha-icon>
-                  Stopping
-                </button>
-              `
-              : starting
-                ? `
-                  <button title="Starting ${this._escape(station.name)}" disabled>
-                    <ha-icon class="spin" icon="mdi:loading"></ha-icon>
-                    Starting
-                  </button>
-                `
-                : this._stationNeedsStop(station)
-              ? `
-                <button class="danger" title="Stop ${this._escape(station.name)}" data-stop="${this._escape(station.key)}">
-                  <ha-icon icon="mdi:stop"></ha-icon>
-                  Stop
-                </button>
-              `
-              : `
-                <button title="Run ${this._escape(station.name)}" data-start="${this._escape(station.key)}" ${disabled || actionError ? "disabled" : ""}>
-                  <ha-icon icon="mdi:play"></ha-icon>
-                  Run
-                </button>
-              `
-          }
         </div>
       </div>
     `;
