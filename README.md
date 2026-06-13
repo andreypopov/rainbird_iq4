@@ -113,12 +113,13 @@ This integration includes a Lovelace custom card for day-to-day irrigation contr
 
 The card can:
 
-- Auto-discover Rain Bird IQ4 station switches.
-- Select a controller.
-- Set a run duration per station right next to the station.
-- Start or stop individual stations.
-- Stop all irrigation for the selected controller when any station is running.
-- Show controller connection status.
+- Auto-discover Rain Bird IQ4 zone sensors from newer integrations.
+- Auto-discover legacy station switches from this integration as a fallback.
+- Hide the controller picker when there is only one controller.
+- Set a compact run duration per zone right next to its Run button.
+- Start or stop individual zones.
+- Show Stop all only while one or more zones are running.
+- Show controller connection, rain pause, forecast delay, alerts, and program schedule status.
 
 ### Add The Card Resource
 
@@ -160,9 +161,9 @@ auto: true
 default_duration: 10
 ```
 
-`default_duration` is the initial minute value shown for each station. You can change the minutes per station directly on the card before starting it.
+`default_duration` is the initial minute value shown for each zone. You can change the minutes per zone directly on the card before starting it.
 
-The card auto-discovers station switches created by this integration. For a fixed list of stations, use:
+The card auto-discovers Rain Bird IQ4 zone sensors first. If none are present, it falls back to legacy station switches created by this integration. For a fixed list of zones, use:
 
 ```yaml
 type: custom:rainbird-iq4-card
@@ -170,8 +171,8 @@ title: Front lawn
 auto: false
 default_duration: 8
 entities:
-  - switch.front_lawn_zone_1
-  - switch.front_lawn_zone_2
+  - sensor.front_lawn_zone_1
+  - sensor.front_lawn_zone_2
 ```
 
 For multiple controllers you can select the default controller:

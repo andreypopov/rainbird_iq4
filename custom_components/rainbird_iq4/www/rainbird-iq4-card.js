@@ -2,9 +2,10 @@ class RainBirdIQ4Card extends HTMLElement {
   static getStubConfig() {
     return {
       type: "custom:rainbird-iq4-card",
-      title: "Rain Bird IQ4",
+      title: "Garden irrigation",
       auto: true,
-      default_duration: 6,
+      default_duration: 10,
+      show_programs: true,
     };
   }
 
@@ -16,14 +17,13 @@ class RainBirdIQ4Card extends HTMLElement {
     this._config = {
       title: "Rain Bird IQ4",
       auto: true,
-      default_duration: 6,
+      default_duration: 10,
+      show_programs: true,
       ...config,
     };
-    this._duration = Number(this._config.default_duration || 6);
     this._selectedControllerId = this._config.controller_id
       ? String(this._config.controller_id)
-      : null;
-    this._rainDelayDraft = this._rainDelayDraft || {};
+      : this._selectedControllerId || null;
     this._stationDurations = this._stationDurations || {};
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
@@ -37,7 +37,7 @@ class RainBirdIQ4Card extends HTMLElement {
 
   getCardSize() {
     const stations = this._getStations();
-    return Math.max(3, Math.min(8, stations.length + 3));
+    return Math.max(4, Math.min(10, stations.length + 4));
   }
 
   _render(force = false) {
@@ -56,17 +56,13 @@ class RainBirdIQ4Card extends HTMLElement {
       this._selectedControllerId = controllers[0].id;
     }
 
-    const selectedController = controllers.find(
-      (controller) => controller.id === this._selectedControllerId
-    );
+    const selectedController =
+      controllers.find((controller) => controller.id === this._selectedControllerId) ||
+      controllers[0];
     const visibleStations = stations.filter(
       (station) => !selectedController || station.controllerId === selectedController.id
     );
-    const renderKey = this._buildRenderKey(
-      stations,
-      controllers,
-      selectedController
-    );
+    const renderKey = this._buildRenderKey(stations, controllers, selectedController);
 
     if (!force && renderKey === this._lastRenderKey) {
       return;
@@ -83,52 +79,84 @@ class RainBirdIQ4Card extends HTMLElement {
       <style>
         :host {
           display: block;
+          letter-spacing: 0;
         }
 
-        .card {
-          padding: 0 16px 18px;
+        ha-card {
+          container-type: inline-size;
+          overflow: hidden;
         }
 
-        .empty {
-          color: var(--secondary-text-color);
-          padding: 16px 0 4px;
+        .wrap {
+          display: grid;
+          gap: 16px;
+          padding: 18px;
         }
 
-        .toolbar {
-          align-items: center;
+        .top {
+          align-items: start;
           display: flex;
-          gap: 12px;
+          gap: 14px;
           justify-content: space-between;
-          margin: 4px 0 16px;
         }
 
-        .field {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          flex: 1 1 auto;
+        .heading {
           min-width: 0;
         }
 
-        .field.controller {
-          max-width: 360px;
+        .title-line {
+          align-items: center;
+          display: flex;
+          gap: 10px;
+          min-width: 0;
         }
 
-        label {
+        .title-line ha-icon {
+          --mdc-icon-size: 24px;
+          color: var(--primary-color);
+          flex: 0 0 auto;
+        }
+
+        h2 {
+          color: var(--primary-text-color);
+          font-size: 20px;
+          font-weight: 700;
+          line-height: 26px;
+          margin: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .subtitle {
           color: var(--secondary-text-color);
-          font-size: 12px;
-          line-height: 16px;
+          font-size: 13px;
+          line-height: 18px;
+          margin-top: 4px;
+        }
+
+        .top-actions {
+          align-items: center;
+          display: flex;
+          flex: 0 0 auto;
+          flex-wrap: wrap;
+          gap: 8px;
+          justify-content: end;
+        }
+
+        .controller-field {
+          min-width: 180px;
         }
 
         select,
         input {
           background: var(--secondary-background-color);
           border: 1px solid transparent;
-          border-radius: 10px;
+          border-radius: 8px;
           box-sizing: border-box;
           color: var(--primary-text-color);
           font: inherit;
-          height: 38px;
+          height: 40px;
           min-width: 0;
           outline: none;
           padding: 0 12px;
@@ -150,12 +178,17 @@ class RainBirdIQ4Card extends HTMLElement {
           cursor: pointer;
           display: inline-flex;
           font: inherit;
-          font-weight: 600;
+          font-size: 13px;
+          font-weight: 700;
           gap: 6px;
-          height: 38px;
+          height: 40px;
           justify-content: center;
           padding: 0 14px;
           white-space: nowrap;
+        }
+
+        button ha-icon {
+          --mdc-icon-size: 18px;
         }
 
         button.secondary {
@@ -164,165 +197,353 @@ class RainBirdIQ4Card extends HTMLElement {
         }
 
         button.danger {
-          background: color-mix(in srgb, var(--error-color, #db4437) 92%, black);
+          background: var(--error-color, #db4437);
           color: white;
         }
 
         button.icon {
-          min-width: 38px;
+          min-width: 40px;
           padding: 0;
         }
 
         button[disabled] {
           cursor: not-allowed;
-          opacity: 0.55;
+          opacity: 0.45;
         }
 
-        .status-strip {
+        .pills {
           display: flex;
           flex-wrap: wrap;
           gap: 8px;
-          margin: -2px 0 14px;
         }
 
         .pill {
           align-items: center;
           background: var(--secondary-background-color);
+          border: 1px solid color-mix(in srgb, var(--divider-color) 70%, transparent);
           border-radius: 999px;
           color: var(--secondary-text-color);
           display: inline-flex;
           font-size: 12px;
           gap: 6px;
-          line-height: 20px;
-          padding: 2px 10px;
+          min-height: 26px;
+          padding: 0 10px;
         }
 
-        .dot {
-          background: var(--disabled-text-color);
-          border-radius: 50%;
-          height: 8px;
-          width: 8px;
+        .pill ha-icon {
+          --mdc-icon-size: 15px;
         }
 
-        .dot.on {
-          background: var(--success-color, #43a047);
+        .pill.ok {
+          background: color-mix(in srgb, var(--success-color, #43a047) 12%, var(--secondary-background-color));
+          border-color: color-mix(in srgb, var(--success-color, #43a047) 30%, transparent);
+          color: var(--primary-text-color);
         }
 
-        .dot.off {
-          background: var(--error-color, #db4437);
+        .pill.warn {
+          background: color-mix(in srgb, var(--warning-color, #f4b400) 14%, var(--secondary-background-color));
+          border-color: color-mix(in srgb, var(--warning-color, #f4b400) 34%, transparent);
+          color: var(--primary-text-color);
         }
 
-        .station-list {
+        .pill.bad {
+          background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--secondary-background-color));
+          border-color: color-mix(in srgb, var(--error-color, #db4437) 32%, transparent);
+          color: var(--primary-text-color);
+        }
+
+        .section {
           display: grid;
           gap: 10px;
         }
 
-        .station {
+        .section-title {
           align-items: center;
-          background: color-mix(in srgb, var(--secondary-background-color) 78%, transparent);
-          border: 1px solid color-mix(in srgb, var(--divider-color) 72%, transparent);
-          border-radius: 14px;
+          color: var(--secondary-text-color);
+          display: flex;
+          font-size: 12px;
+          font-weight: 700;
+          gap: 7px;
+          text-transform: uppercase;
+        }
+
+        .section-title ha-icon {
+          --mdc-icon-size: 15px;
+        }
+
+        .station-list,
+        .program-list {
           display: grid;
-          gap: 12px;
-          grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
-          min-height: 64px;
-          padding: 10px;
+          gap: 8px;
+        }
+
+        .station,
+        .program {
+          align-items: center;
+          background: color-mix(in srgb, var(--secondary-background-color) 76%, transparent);
+          border: 1px solid color-mix(in srgb, var(--divider-color) 72%, transparent);
+          border-radius: 8px;
+          display: grid;
+          gap: 14px;
+          min-width: 0;
+          padding: 12px;
+        }
+
+        .station {
+          grid-template-columns: minmax(0, 1fr) max-content;
         }
 
         .station.is-running {
           background: color-mix(in srgb, var(--success-color, #43a047) 12%, var(--secondary-background-color));
-          border-color: color-mix(in srgb, var(--success-color, #43a047) 32%, transparent);
+          border-color: color-mix(in srgb, var(--success-color, #43a047) 34%, transparent);
         }
 
-        .station-title {
-          font-weight: 600;
+        .station.is-paused {
+          background: color-mix(in srgb, var(--warning-color, #f4b400) 13%, var(--secondary-background-color));
+          border-color: color-mix(in srgb, var(--warning-color, #f4b400) 34%, transparent);
+        }
+
+        .station-main {
+          align-items: center;
+          display: grid;
+          gap: 10px;
+          grid-template-columns: 34px minmax(0, 1fr);
+          min-width: 0;
+        }
+
+        .station-main > div:last-child {
+          min-width: 0;
+        }
+
+        .terminal {
+          align-items: center;
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: 50%;
+          color: var(--secondary-text-color);
+          display: inline-flex;
+          font-size: 13px;
+          font-weight: 700;
+          height: 34px;
+          justify-content: center;
+          width: 34px;
+        }
+
+        .station.is-running .terminal {
+          border-color: color-mix(in srgb, var(--success-color, #43a047) 42%, transparent);
+          color: var(--success-color, #43a047);
+        }
+
+        .station-name {
+          color: var(--primary-text-color);
+          font-size: 15px;
+          font-weight: 700;
+          line-height: 20px;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
-        .station-meta {
+        .meta {
           color: var(--secondary-text-color);
           display: flex;
           flex-wrap: wrap;
           font-size: 12px;
-          gap: 8px;
-          margin-top: 3px;
+          gap: 6px 9px;
+          line-height: 17px;
+          margin-top: 2px;
         }
 
-        .duration-control {
-          align-items: center;
-          background: var(--card-background-color);
-          border: 1px solid var(--divider-color);
-          border-radius: 999px;
-          display: grid;
-          grid-template-columns: minmax(0, 1fr) auto;
-          height: 38px;
-          min-width: 0;
-          overflow: hidden;
-          width: 100%;
+        .meta .running {
+          color: var(--success-color, #43a047);
+          font-weight: 700;
         }
 
-        .duration-control input {
-          background: transparent;
-          border: 0;
-          box-shadow: none;
-          height: 36px;
-          padding: 0 4px 0 12px;
-          text-align: right;
-        }
-
-        .duration-control span {
-          color: var(--secondary-text-color);
-          font-size: 12px;
-          padding-right: 12px;
+        .meta .paused {
+          color: var(--warning-color, #f4b400);
+          font-weight: 700;
         }
 
         .station-actions {
           align-items: center;
           display: grid;
-          grid-template-columns: minmax(150px, 1fr) auto;
           gap: 8px;
+          grid-template-columns: 96px auto;
+          justify-content: end;
         }
 
-        .station button.run {
+        .station-actions button {
+          justify-self: end;
           min-width: 74px;
         }
 
-        .station button.stop {
-          min-width: 82px;
+        .duration {
+          align-items: center;
+          background: var(--card-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          display: grid;
+          grid-template-columns: 48px auto;
+          height: 40px;
+          width: 96px;
+          min-width: 96px;
+          overflow: hidden;
         }
 
-        .running {
-          color: var(--success-color, #43a047);
+        .duration input {
+          background: transparent;
+          border: 0;
+          box-shadow: none;
+          height: 38px;
+          padding: 0 4px 0 8px;
+          text-align: right;
+        }
+
+        .duration span {
+          color: var(--secondary-text-color);
+          font-size: 12px;
+          padding-right: 8px;
+        }
+
+        .program {
+          grid-template-columns: minmax(0, 1fr) auto;
+        }
+
+        .program-name {
+          color: var(--primary-text-color);
+          font-size: 14px;
           font-weight: 700;
+          line-height: 19px;
         }
 
-        @media (max-width: 600px) {
-          .toolbar {
-            align-items: stretch;
-            flex-direction: column;
+        .program-status {
+          border-radius: 999px;
+          font-size: 12px;
+          font-weight: 700;
+          justify-self: start;
+          padding: 4px 9px;
+          text-transform: capitalize;
+        }
+
+        .program-status.scheduled {
+          background: color-mix(in srgb, var(--success-color, #43a047) 14%, var(--secondary-background-color));
+          color: var(--success-color, #43a047);
+        }
+
+        .program-status.off {
+          background: var(--secondary-background-color);
+          color: var(--secondary-text-color);
+        }
+
+        .empty,
+        .error {
+          background: var(--secondary-background-color);
+          border-radius: 8px;
+          color: var(--secondary-text-color);
+          line-height: 20px;
+          padding: 14px;
+        }
+
+        .error {
+          background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--secondary-background-color));
+          color: var(--primary-text-color);
+        }
+
+        @media (max-width: 760px) {
+          .wrap {
+            padding: 16px;
           }
 
-          .field.controller {
-            max-width: none;
+          .top {
+            display: grid;
           }
 
-          .station {
+          .top-actions {
+            justify-content: start;
+          }
+
+          .controller-field {
+            min-width: min(100%, 260px);
+            width: 100%;
+          }
+
+          .station,
+          .program {
             align-items: stretch;
             grid-template-columns: minmax(0, 1fr);
           }
 
           .station-actions {
-            display: grid;
-            grid-template-columns: minmax(92px, 1fr) auto;
+            grid-template-columns: 96px auto;
+            justify-content: end;
+          }
+        }
+
+        @media (max-width: 420px) {
+          .station-actions {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .station-actions button {
+            width: 100%;
+          }
+        }
+
+        @container (max-width: 560px) {
+          .station,
+          .program {
+            align-items: stretch;
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .station-actions {
+            grid-template-columns: 96px auto;
+            justify-content: end;
+          }
+        }
+
+        @container (max-width: 360px) {
+          .station-actions {
+            grid-template-columns: minmax(0, 1fr);
+          }
+
+          .station-actions button {
+            width: 100%;
           }
         }
       </style>
 
-      <ha-card header="${this._escape(this._config.title)}">
-        <div class="card">
-          ${stations.length ? this._renderContent(controllers, selectedController, visibleStations, rainDelayValue, rainDelayEntity) : this._renderEmpty()}
+      <ha-card>
+        <div class="wrap">
+          <div class="top">
+            <div class="heading">
+              <div class="title-line">
+                <ha-icon icon="mdi:sprinkler-variant"></ha-icon>
+                <h2>${this._escape(this._config.title)}</h2>
+              </div>
+              <div class="subtitle">${this._escape(this._subtitle(visibleStations, selectedController))}</div>
+            </div>
+            <div class="top-actions">
+              ${this._renderControllerPicker(controllers)}
+              ${this._renderTopActions(selectedController, visibleStations)}
+            </div>
+          </div>
+          ${
+            this._actionError
+              ? `<div class="error">${this._escape(this._actionError)}</div>`
+              : ""
+          }
+          ${selectedController ? this._renderPills(selectedController) : ""}
+          ${
+            stations.length
+              ? this._renderStations(visibleStations)
+              : this._renderEmpty()
+          }
+          ${
+            selectedController && this._config.show_programs !== false
+              ? this._renderPrograms(selectedController)
+              : ""
+          }
         </div>
       </ha-card>
     `;
@@ -330,117 +551,177 @@ class RainBirdIQ4Card extends HTMLElement {
     this._bindEvents();
   }
 
-  _renderContent(controllers, selectedController, stations) {
-    const connectionPills = controllers
-      .map(
-        (controller) => `
-          <span class="pill">
-            <span class="dot ${controller.connected === true ? "on" : controller.connected === false ? "off" : ""}"></span>
-            ${this._escape(controller.name)}
-          </span>
-        `
-      )
-      .join("");
-
-    const controllerField =
-      controllers.length > 1
-        ? `
-          <div class="field controller">
-            <label>Controller</label>
-            <select data-controller>
-              ${controllers
-                .map(
-                  (controller) => `
-                    <option value="${this._escape(controller.id)}" ${controller.id === this._selectedControllerId ? "selected" : ""}>
-                      ${this._escape(controller.name)}
-                    </option>
-                  `
-                )
-                .join("")}
-            </select>
-          </div>
-        `
-        : "";
-
-    const stationRows = stations.length
-      ? stations.map((station) => this._renderStation(station)).join("")
-      : `<div class="empty">No stations found for this controller.</div>`;
-    const hasRunningStation = stations.some((station) => station.state === "on");
-
+  _renderControllerPicker(controllers) {
+    if (controllers.length <= 1) return "";
     return `
-      <div class="status-strip">${connectionPills}</div>
-      ${
-        controllerField || hasRunningStation
-          ? `
-            <div class="toolbar">
-              ${controllerField}
-              ${
-                hasRunningStation
-                  ? `
-                    <button class="danger stop-all" data-stop-all ${selectedController ? "" : "disabled"}>
-                      <ha-icon icon="mdi:stop-circle-outline"></ha-icon>
-                      Stop all
-                    </button>
-                  `
-                  : ""
-              }
-            </div>
-          `
-          : ""
-      }
-      <div class="station-list">${stationRows}</div>
+      <select class="controller-field" data-controller aria-label="Controller">
+        ${controllers
+          .map(
+            (controller) => `
+              <option value="${this._escape(controller.id)}" ${controller.id === this._selectedControllerId ? "selected" : ""}>
+                ${this._escape(controller.name)}
+              </option>
+            `
+          )
+          .join("")}
+      </select>
     `;
   }
 
-  _renderEmpty() {
+  _renderTopActions(controller, stations) {
+    if (!controller) return "";
+    const runningStations = stations.filter((station) => this._stationNeedsStop(station));
     return `
-      <div class="empty">
-        No Rain Bird IQ4 station switches were found. Add the Rain Bird IQ4 integration first, then refresh this dashboard.
+      ${
+        controller.refreshEntity
+          ? `
+            <button class="secondary icon" data-refresh title="Refresh Rain Bird data" aria-label="Refresh Rain Bird data">
+              <ha-icon icon="mdi:refresh"></ha-icon>
+            </button>
+          `
+          : ""
+      }
+      ${
+        runningStations.length
+          ? `
+            <button class="danger" data-stop-all>
+              <ha-icon icon="mdi:stop-circle-outline"></ha-icon>
+              Stop all
+            </button>
+          `
+          : ""
+      }
+    `;
+  }
+
+  _renderPills(controller) {
+    const pills = [];
+    if (controller.connected !== undefined) {
+      pills.push({
+        icon: controller.connected ? "mdi:cloud-check" : "mdi:cloud-alert",
+        tone: controller.connected ? "ok" : "bad",
+        text: controller.connected ? `${controller.name} online` : `${controller.name} offline`,
+      });
+    }
+    if (controller.modeState && !this._isUnknown(controller.modeState.state)) {
+      pills.push({
+        icon: "mdi:controller",
+        tone: "",
+        text: `Mode: ${controller.modeState.state}`,
+      });
+    }
+    if (controller.rainDelayState && !this._isUnknown(controller.rainDelayState.state)) {
+      const days = Number(controller.rainDelayState.state || 0);
+      pills.push({
+        icon: "mdi:weather-rainy",
+        tone: days > 0 ? "warn" : "",
+        text: days > 0 ? `Rain pause ${days}d` : "No rain pause",
+      });
+    }
+    if (controller.forecastState) {
+      pills.push({
+        icon: "mdi:weather-partly-rainy",
+        tone: controller.forecastState.state === "on" ? "ok" : "",
+        text: controller.forecastState.state === "on" ? "Forecast delay on" : "Forecast delay off",
+      });
+    }
+
+    const alarms = this._stateNumber(controller.alarmsState);
+    const warnings = this._stateNumber(controller.warningsState);
+    if (alarms > 0) {
+      pills.push({ icon: "mdi:alarm-light", tone: "bad", text: `${alarms} alarms` });
+    }
+    if (warnings > 0) {
+      pills.push({ icon: "mdi:alert", tone: "warn", text: `${warnings} warnings` });
+    }
+    if (alarms === 0 && warnings === 0) {
+      pills.push({ icon: "mdi:check-circle-outline", tone: "ok", text: "No alerts" });
+    }
+
+    if (!pills.length) return "";
+    return `
+      <div class="pills">
+        ${pills
+          .map(
+            (pill) => `
+              <span class="pill ${this._escape(pill.tone)}">
+                <ha-icon icon="${this._escape(pill.icon)}"></ha-icon>
+                ${this._escape(pill.text)}
+              </span>
+            `
+          )
+          .join("")}
       </div>
     `;
   }
 
+  _renderStations(stations) {
+    if (!stations.length) {
+      return `<div class="empty">No stations found for this controller.</div>`;
+    }
+    return `
+      <section class="section">
+        <div class="section-title">
+          <ha-icon icon="mdi:sprinkler"></ha-icon>
+          Zones
+        </div>
+        <div class="station-list">
+          ${stations.map((station) => this._renderStation(station)).join("")}
+        </div>
+      </section>
+    `;
+  }
+
   _renderStation(station) {
-    const running = station.state === "on";
-    const remaining = Number(station.attributes.remaining_seconds || 0);
-    const remainingText = remaining > 0 ? `${Math.ceil(remaining / 60)} min left` : "";
-    const duration = this._durationForStation(station.stationId);
+    const running = this._isStationRunning(station);
+    const paused = station.state === "paused";
+    const disabled = this._isUnknown(station.state);
+    const duration = this._durationForStation(station);
+    const maxDuration = this._maxDurationForStation(station);
+    const remaining = this._formatRemaining(station.attributes.remaining ?? station.attributes.remaining_seconds);
+    const last = this._formatLastRun(station.attributes.last_run_completed || station.attributes.last_run);
     const meta = [
-      station.attributes.terminal ? `Terminal ${this._escape(station.attributes.terminal)}` : null,
-      station.attributes.landscape_type ? this._escape(station.attributes.landscape_type) : null,
-      station.attributes.sprinkler_type ? this._escape(station.attributes.sprinkler_type) : null,
-      running ? `<span class="running">${remainingText || "Running"}</span>` : null,
+      station.terminal ? `Terminal ${station.terminal}` : null,
+      running && remaining ? `<span class="running">${this._escape(remaining)} left</span>` : null,
+      running && !remaining ? `<span class="running">Running</span>` : null,
+      paused ? `<span class="paused">Paused</span>` : null,
+      !running && !paused && !disabled ? "Idle" : null,
+      disabled ? this._humanState(station.state) : null,
+      last ? `Last ${this._escape(last)}` : null,
     ]
       .filter(Boolean)
       .join("<span>•</span>");
 
     return `
-      <div class="station ${running ? "is-running" : ""}">
-        <div>
-          <div class="station-title">${this._escape(station.name)}</div>
-          <div class="station-meta">${meta}</div>
+      <div class="station ${running ? "is-running" : ""} ${paused ? "is-paused" : ""}">
+        <div class="station-main">
+          <div class="terminal">${this._escape(station.terminal || "-")}</div>
+          <div>
+            <div class="station-name">${this._escape(station.name)}</div>
+            <div class="meta">${meta}</div>
+          </div>
         </div>
         <div class="station-actions">
           ${
-            running
+            this._stationNeedsStop(station)
               ? ""
               : `
-                <label class="duration-control" title="Run duration in minutes">
-                  <input data-station-duration="${this._escape(station.stationId)}" type="number" min="1" max="720" inputmode="numeric" value="${this._escape(duration)}">
+                <label class="duration" title="Run duration in minutes">
+                  <input data-station-duration="${this._escape(station.key)}" type="number" min="1" max="${maxDuration}" inputmode="numeric" value="${this._escape(duration)}" ${disabled ? "disabled" : ""}>
                   <span>min</span>
                 </label>
               `
           }
           ${
-            running
+            this._stationNeedsStop(station)
               ? `
-                <button class="danger stop" title="Stop ${this._escape(station.name)}" data-stop="${this._escape(station.stationId)}">
+                <button class="danger" title="Stop ${this._escape(station.name)}" data-stop="${this._escape(station.key)}">
                   <ha-icon icon="mdi:stop"></ha-icon>
                   Stop
                 </button>
               `
               : `
-                <button class="run" title="Run ${this._escape(station.name)}" data-start="${this._escape(station.stationId)}">
+                <button title="Run ${this._escape(station.name)}" data-start="${this._escape(station.key)}" ${disabled ? "disabled" : ""}>
                   <ha-icon icon="mdi:play"></ha-icon>
                   Run
                 </button>
@@ -451,61 +732,171 @@ class RainBirdIQ4Card extends HTMLElement {
     `;
   }
 
+  _renderPrograms(controller) {
+    const programs = controller.programs || [];
+    if (!programs.length) return "";
+    return `
+      <section class="section">
+        <div class="section-title">
+          <ha-icon icon="mdi:calendar-clock"></ha-icon>
+          Schedule
+        </div>
+        <div class="program-list">
+          ${programs.map((program) => this._renderProgram(program)).join("")}
+        </div>
+      </section>
+    `;
+  }
+
+  _renderProgram(program) {
+    const attrs = program.attributes || {};
+    const scheduled = program.state === "scheduled";
+    const details = [
+      attrs.start_time ? `Starts ${attrs.start_time}` : null,
+      Array.isArray(attrs.week_days) && attrs.week_days.length
+        ? this._formatWeekDays(attrs.week_days)
+        : null,
+      Number(attrs.steps || 0) > 0 ? `${attrs.steps} step${Number(attrs.steps) === 1 ? "" : "s"}` : null,
+      attrs.weather_adjust ? `${attrs.weather_adjust} adjust` : null,
+      attrs.seasonal_adjust !== undefined ? `${attrs.seasonal_adjust}%` : null,
+    ]
+      .filter(Boolean)
+      .join("<span>•</span>");
+
+    return `
+      <div class="program">
+        <div>
+          <div class="program-name">${this._escape(this._programName(program))}</div>
+          <div class="meta">${details || "No schedule details"}</div>
+        </div>
+        <span class="program-status ${scheduled ? "scheduled" : "off"}">
+          ${this._escape(this._humanState(program.state))}
+        </span>
+      </div>
+    `;
+  }
+
+  _renderEmpty() {
+    return `
+      <div class="empty">
+        No Rain Bird IQ4 zones were found. Add the integration, then refresh this dashboard.
+      </div>
+    `;
+  }
+
   _bindEvents() {
     this.shadowRoot.querySelector("[data-controller]")?.addEventListener("change", (event) => {
       this._selectedControllerId = event.target.value;
       this._render(true);
     });
 
-    this.shadowRoot.querySelector("[data-stop-all]")?.addEventListener("click", () => {
-      if (!this._selectedControllerId) return;
-      this._hass.callService("rainbird_iq4", "stop_all", {
-        controller_id: Number(this._selectedControllerId),
+    this.shadowRoot.querySelectorAll("select, input").forEach((control) => {
+      control.addEventListener("pointerdown", () => {
+        this._deferRenderUntil = Date.now() + 1200;
       });
+      control.addEventListener("focus", () => {
+        this._deferRenderUntil = Date.now() + 1200;
+      });
+      control.addEventListener("blur", () => {
+        this._deferRenderUntil = 0;
+        this._render(true);
+      });
+    });
+
+    this.shadowRoot.querySelector("[data-refresh]")?.addEventListener("click", () => {
+      const controller = this._selectedController();
+      if (!controller?.refreshEntity) return;
+      this._callService("button", "press", { entity_id: controller.refreshEntity });
+    });
+
+    this.shadowRoot.querySelector("[data-stop-all]")?.addEventListener("click", () => {
+      this._visibleStations()
+        .filter((station) => this._stationNeedsStop(station))
+        .forEach((station) => this._stopStation(station));
     });
 
     this.shadowRoot.querySelectorAll("[data-station-duration]").forEach((input) => {
       input.addEventListener("change", () => {
-        const stationId = input.dataset.stationDuration;
-        const duration = this._normalizeDuration(input.value);
-        this._stationDurations[stationId] = duration;
+        const station = this._stationByKey(input.dataset.stationDuration);
+        const duration = this._normalizeDuration(input.value, station);
+        this._stationDurations[input.dataset.stationDuration] = duration;
         input.value = duration;
       });
     });
 
     this.shadowRoot.querySelectorAll("[data-start]").forEach((button) => {
       button.addEventListener("click", () => {
-        const stationId = button.dataset.start;
-        const input = [...this.shadowRoot.querySelectorAll("[data-station-duration]")].find(
-          (element) => element.dataset.stationDuration === stationId
+        const station = this._stationByKey(button.dataset.start);
+        if (!station) return;
+        const input = this.shadowRoot.querySelector(
+          `[data-station-duration="${CSS.escape(station.key)}"]`
         );
-        const duration = this._normalizeDuration(input?.value);
-        this._stationDurations[stationId] = duration;
+        const duration = this._normalizeDuration(input?.value, station);
+        this._stationDurations[station.key] = duration;
         if (input) input.value = duration;
-        this._hass.callService("rainbird_iq4", "start_station", {
-          station_id: Number(stationId),
-          duration,
-        });
+        this._startStation(station, duration);
       });
     });
 
     this.shadowRoot.querySelectorAll("[data-stop]").forEach((button) => {
       button.addEventListener("click", () => {
-        this._hass.callService("rainbird_iq4", "stop_station", {
-          station_id: Number(button.dataset.stop),
-        });
+        const station = this._stationByKey(button.dataset.stop);
+        if (station) this._stopStation(station);
       });
     });
   }
 
-  _durationForStation(stationId) {
-    return this._normalizeDuration(
-      this._stationDurations?.[stationId] ?? this._config.default_duration ?? 6
+  _startStation(station, duration) {
+    if (station.mode === "sensor") {
+      this._callService("rainbird_iq4", "start_zone", {
+        station_entity: station.entityId,
+        duration,
+      });
+      return;
+    }
+    this._callService("rainbird_iq4", "start_station", {
+      station_id: Number(station.stationId),
+      duration,
+    });
+  }
+
+  _stopStation(station) {
+    if (station.mode === "sensor") {
+      this._callService("rainbird_iq4", "stop_zone", {
+        station_entity: station.entityId,
+      });
+      return;
+    }
+    this._callService("rainbird_iq4", "stop_station", {
+      station_id: Number(station.stationId),
+    });
+  }
+
+  _callService(domain, service, data) {
+    this._actionError = "";
+    const result = this._hass.callService(domain, service, data);
+    if (result?.catch) {
+      result.catch((error) => {
+        this._actionError = error?.message || String(error || "Service call failed");
+        this._render(true);
+      });
+    }
+  }
+
+  _selectedController() {
+    return this._getControllers(this._getStations()).find(
+      (controller) => controller.id === this._selectedControllerId
     );
   }
 
-  _normalizeDuration(value) {
-    return Math.max(1, Math.min(720, Number(value || 1)));
+  _visibleStations() {
+    const stations = this._getStations();
+    const selected = this._selectedController();
+    return stations.filter((station) => !selected || station.controllerId === selected.id);
+  }
+
+  _stationByKey(key) {
+    return this._getStations().find((station) => station.key === key);
   }
 
   _getStations() {
@@ -513,93 +904,364 @@ class RainBirdIQ4Card extends HTMLElement {
     const configuredEntities = Array.isArray(this._config.entities)
       ? this._config.entities
       : [];
-    const entries = configuredEntities.length
-      ? configuredEntities
-          .map((entityId) => [entityId, this._hass.states[entityId]])
-          .filter(([, state]) => state)
-      : this._config.auto === false
-        ? []
-      : Object.entries(this._hass.states).filter(([entityId, state]) => {
-          return (
-            entityId.startsWith("switch.") &&
-            state.attributes.station_id !== undefined &&
-            state.attributes.controller_id !== undefined
-          );
-        });
+    if (configuredEntities.length) {
+      return configuredEntities
+        .map((entityId) => [entityId, this._hass.states[entityId]])
+        .filter(([, state]) => state)
+        .map(([entityId, state]) => this._stationFromState(entityId, state))
+        .filter(Boolean)
+        .sort((left, right) => this._stationSort(left, right));
+    }
+    if (this._config.auto === false) return [];
 
-    return entries
-      .map(([entityId, state]) => ({
+    const sensorStations = Object.entries(this._hass.states)
+      .filter(([entityId, state]) => this._isStationSensor(entityId, state))
+      .map(([entityId, state]) => this._stationFromState(entityId, state))
+      .filter(Boolean);
+
+    if (sensorStations.length) {
+      return sensorStations.sort((left, right) => this._stationSort(left, right));
+    }
+
+    return Object.entries(this._hass.states)
+      .filter(([entityId, state]) => this._isLegacyStationSwitch(entityId, state))
+      .map(([entityId, state]) => this._stationFromState(entityId, state))
+      .filter(Boolean)
+      .sort((left, right) => this._stationSort(left, right));
+  }
+
+  _stationFromState(entityId, state) {
+    if (!state) return null;
+    const attrs = state.attributes || {};
+    if (this._isStationSensor(entityId, state)) {
+      const controllerId = this._controllerIdForSensor(entityId);
+      const name = this._cleanStationName(attrs.friendly_name || entityId, controllerId);
+      return {
+        mode: "sensor",
+        key: entityId,
         entityId,
         state: state.state,
-        attributes: state.attributes,
-        stationId: String(state.attributes.station_id),
-        controllerId: String(state.attributes.controller_id),
-        name: state.attributes.friendly_name || entityId,
-      }))
-      .sort((left, right) => {
-        const terminalLeft = Number(left.attributes.terminal || 9999);
-        const terminalRight = Number(right.attributes.terminal || 9999);
-        return terminalLeft - terminalRight || left.name.localeCompare(right.name);
-      });
+        attributes: attrs,
+        stationId: entityId,
+        controllerId,
+        name,
+        terminal: attrs.terminal,
+      };
+    }
+    if (entityId.startsWith("switch.") && attrs.station_id !== undefined) {
+      return {
+        mode: "legacy",
+        key: String(attrs.station_id),
+        entityId,
+        state: state.state,
+        attributes: attrs,
+        stationId: String(attrs.station_id),
+        controllerId: String(attrs.controller_id),
+        name: attrs.friendly_name || entityId,
+        terminal: attrs.terminal,
+      };
+    }
+    return null;
+  }
+
+  _isStationSensor(entityId, state) {
+    if (!entityId.startsWith("sensor.")) return false;
+    const attrs = state.attributes || {};
+    if (attrs.terminal === undefined) return false;
+    if (!["idle", "running", "paused", "unknown", "unavailable"].includes(state.state)) {
+      return false;
+    }
+    if (entityId.includes("_program_") || entityId.includes("_rain_delay")) return false;
+    return attrs.icon === "mdi:sprinkler" || attrs.device_class === "enum";
+  }
+
+  _isLegacyStationSwitch(entityId, state) {
+    const attrs = state.attributes || {};
+    return (
+      entityId.startsWith("switch.") &&
+      state.state !== "unavailable" &&
+      attrs.station_id !== undefined &&
+      attrs.controller_id !== undefined
+    );
   }
 
   _getControllers(stations) {
-    const controllerIds = [...new Set(stations.map((station) => station.controllerId))];
-    return controllerIds.map((id) => {
-      const connection = this._getConnectionEntity(id);
-      const name = this._controllerName(id, connection);
-      return {
+    const ids = [...new Set(stations.map((station) => station.controllerId))];
+    return ids.map((id) => {
+      const controllerStations = stations.filter((station) => station.controllerId === id);
+      const mode = controllerStations[0]?.mode || "sensor";
+      const connectedState =
+        mode === "sensor" ? this._entity(`binary_sensor.${id}_connected`) : this._legacyConnection(id);
+      const controller = {
         id,
-        name,
-        connected: connection ? connection.state === "on" : undefined,
+        mode,
+        name: this._controllerName(id, connectedState, controllerStations),
+        connected: connectedState ? connectedState.state === "on" : undefined,
+        connectedState,
+        rainDelayState:
+          mode === "sensor" ? this._entity(`sensor.${id}_rain_delay`) : this._legacyRainDelay(id),
+        forecastState: mode === "sensor" ? this._entity(`binary_sensor.${id}_forecast_rain_delay`) : null,
+        alarmsState: mode === "sensor" ? this._findSensorByNeedle(id, "alarms") : null,
+        warningsState: mode === "sensor" ? this._findSensorByNeedle(id, "warnings") : null,
+        modeState: mode === "sensor" ? this._entity(`sensor.${id}_controller_mode`) : null,
+        refreshEntity: mode === "sensor" ? this._findButtonByNeedle(id, "refresh")?.entity_id : null,
+        programs: mode === "sensor" ? this._programsForController(id) : [],
       };
+      return controller;
     });
   }
 
-  _controllerName(controllerId, connectionEntity) {
-    if (this._config.controller_names?.[controllerId]) {
-      return this._config.controller_names[controllerId];
+  _controllerName(id, connectedState, stations) {
+    if (this._config.controller_names?.[id]) {
+      return this._config.controller_names[id];
     }
-    const friendly = connectionEntity?.attributes?.friendly_name;
+    const friendly = connectedState?.attributes?.friendly_name;
     if (friendly) {
-      return friendly.replace(/\s+Connection$/i, "");
+      const stripped = friendly.replace(/\s+(Connected|Connection)$/i, "").trim();
+      if (stripped && stripped !== friendly) return stripped;
     }
-    return `Controller ${controllerId}`;
+    const firstName = stations[0]?.attributes?.friendly_name || "";
+    const label = this._labelFromControllerId(id);
+    if (firstName.toLowerCase().startsWith(`${label.toLowerCase()} `)) {
+      return label;
+    }
+    return /^\d+$/.test(String(id)) ? `Controller ${id}` : label;
   }
 
-  _getConnectionEntity(controllerId) {
+  _controllerIdForSensor(entityId) {
+    const objectId = entityId.split(".")[1] || entityId;
+    const prefixes = this._controllerPrefixes();
+    const matchedPrefix = prefixes
+      .sort((left, right) => right.length - left.length)
+      .find((prefix) => objectId.startsWith(`${prefix}_`));
+    if (matchedPrefix) return matchedPrefix;
+
+    const stationMatch = objectId.match(/^(.+?)_station_/);
+    if (stationMatch) return stationMatch[1];
+    return objectId.split("_")[0];
+  }
+
+  _controllerPrefixes() {
+    if (!this._hass) return [];
+    const prefixes = new Set();
+    Object.keys(this._hass.states).forEach((entityId) => {
+      const objectId = entityId.split(".")[1] || "";
+      [
+        /^(.+)_connected$/,
+        /^(.+)_rain_delay$/,
+        /^(.+)_forecast_rain_delay$/,
+        /^(.+)_controller_mode$/,
+        /^(.+)_program_.+_status$/,
+      ].forEach((pattern) => {
+        const match = objectId.match(pattern);
+        if (match) prefixes.add(match[1]);
+      });
+    });
+    return [...prefixes];
+  }
+
+  _programsForController(id) {
+    return Object.values(this._hass.states)
+      .filter((state) => {
+        return (
+          state.entity_id?.startsWith(`sensor.${id}_program_`) &&
+          state.entity_id.endsWith("_status")
+        );
+      })
+      .sort((left, right) => this._programName(left).localeCompare(this._programName(right)));
+  }
+
+  _programName(program) {
+    const name = program.attributes?.friendly_name || program.entity_id || "Program";
+    const controller = this._labelFromControllerId(this._controllerIdForSensor(program.entity_id || ""));
+    return name
+      .replace(new RegExp(`^${this._escapeRegExp(controller)}\\s+`, "i"), "")
+      .replace(/\s+Status$/i, "")
+      .trim();
+  }
+
+  _legacyConnection(controllerId) {
     return Object.values(this._hass.states).find((state) => {
       return (
         state.entity_id?.startsWith("binary_sensor.") &&
-        String(state.attributes.controller_id) === String(controllerId)
+        String(state.attributes?.controller_id) === String(controllerId)
       );
     });
+  }
+
+  _legacyRainDelay(controllerId) {
+    return Object.values(this._hass.states).find((state) => {
+      return (
+        state.entity_id?.startsWith("number.") &&
+        String(state.attributes?.controller_id) === String(controllerId)
+      );
+    });
+  }
+
+  _entity(entityId) {
+    return this._hass.states[entityId] || null;
+  }
+
+  _findSensorByNeedle(prefix, needle) {
+    return Object.values(this._hass.states).find((state) => {
+      return (
+        state.entity_id?.startsWith(`sensor.${prefix}_`) &&
+        state.entity_id.includes(needle)
+      );
+    });
+  }
+
+  _findButtonByNeedle(prefix, needle) {
+    return Object.values(this._hass.states).find((state) => {
+      return (
+        state.entity_id?.startsWith(`button.${prefix}_`) &&
+        state.entity_id.includes(needle)
+      );
+    });
+  }
+
+  _stationSort(left, right) {
+    const terminalLeft = Number(left.terminal || 9999);
+    const terminalRight = Number(right.terminal || 9999);
+    return terminalLeft - terminalRight || left.name.localeCompare(right.name);
+  }
+
+  _subtitle(stations, controller) {
+    if (!stations.length) return "Ready when your Rain Bird zones are available";
+    const running = stations.filter((station) => this._isStationRunning(station)).length;
+    if (running) return `${running} zone${running === 1 ? "" : "s"} running`;
+    const connected = controller?.connected;
+    if (connected === false) return "Controller is offline";
+    return `${stations.length} zone${stations.length === 1 ? "" : "s"} ready`;
+  }
+
+  _durationForStation(station) {
+    return this._normalizeDuration(
+      this._stationDurations?.[station.key] ?? this._config.default_duration ?? 10,
+      station
+    );
+  }
+
+  _normalizeDuration(value, station) {
+    const max = this._maxDurationForStation(station);
+    const number = Number(value || 1);
+    if (!Number.isFinite(number)) return 1;
+    return Math.max(1, Math.min(max, Math.round(number)));
+  }
+
+  _maxDurationForStation(station) {
+    return station?.mode === "sensor" ? 30 : 720;
+  }
+
+  _isStationRunning(station) {
+    return station.state === "running" || station.state === "on";
+  }
+
+  _stationNeedsStop(station) {
+    return this._isStationRunning(station) || station.state === "paused";
+  }
+
+  _isUnknown(state) {
+    return state === "unknown" || state === "unavailable";
+  }
+
+  _stateNumber(state) {
+    if (!state || this._isUnknown(state.state)) return null;
+    const number = Number(state.state);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  _humanState(state) {
+    return String(state || "")
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  _formatRemaining(value) {
+    if (value === null || value === undefined || value === "") return "";
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) return "";
+    const minutes = number > 720 ? Math.ceil(number / 60) : Math.ceil(number);
+    return `${minutes} min`;
+  }
+
+  _formatLastRun(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString(undefined, {
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      month: "short",
+    });
+  }
+
+  _formatWeekDays(days) {
+    if (!Array.isArray(days) || !days.length) return "";
+    if (days.length === 7) return "Every day";
+    return days.join(", ");
+  }
+
+  _cleanStationName(name, controllerId) {
+    const label = this._labelFromControllerId(controllerId);
+    return String(name)
+      .replace(new RegExp(`^${this._escapeRegExp(label)}\\s+`, "i"), "")
+      .trim();
+  }
+
+  _labelFromControllerId(id) {
+    const text = String(id || "")
+      .replace(/_/g, " ")
+      .trim();
+    if (text.length <= 3) return text.toUpperCase();
+    return text.replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
   _buildRenderKey(stations, controllers, selectedController) {
     return JSON.stringify({
       config: this._config,
       selectedControllerId: selectedController?.id || null,
+      actionError: this._actionError || "",
       stations: stations.map((station) => [
         station.entityId,
         station.state,
         station.name,
         station.stationId,
         station.controllerId,
-        station.attributes.terminal,
-        station.attributes.landscape_type,
-        station.attributes.sprinkler_type,
+        station.terminal,
+        station.attributes.remaining,
         station.attributes.remaining_seconds,
+        station.attributes.last_run,
+        station.attributes.last_run_completed,
       ]),
       controllers: controllers.map((controller) => [
         controller.id,
         controller.name,
         controller.connected,
+        controller.rainDelayState?.state,
+        controller.forecastState?.state,
+        controller.alarmsState?.state,
+        controller.warningsState?.state,
+        controller.modeState?.state,
+        controller.refreshEntity,
+        ...(controller.programs || []).map((program) => [
+          program.entity_id,
+          program.state,
+          program.attributes?.start_time,
+          program.attributes?.steps,
+          program.attributes?.weather_adjust,
+          program.attributes?.seasonal_adjust,
+          (program.attributes?.week_days || []).join(","),
+        ]),
       ]),
     });
   }
 
   _isEditingControl() {
+    if (this._deferRenderUntil && Date.now() < this._deferRenderUntil) {
+      return true;
+    }
     const activeElement = this.shadowRoot?.activeElement;
     return activeElement?.matches?.("select, input, textarea") || false;
   }
@@ -615,6 +1277,10 @@ class RainBirdIQ4Card extends HTMLElement {
     }, 250);
   }
 
+  _escapeRegExp(value) {
+    return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
   _escape(value) {
     return String(value ?? "")
       .replaceAll("&", "&amp;")
@@ -626,7 +1292,12 @@ class RainBirdIQ4Card extends HTMLElement {
 
 class RainBirdIQ4CardEditor extends HTMLElement {
   setConfig(config) {
-    this._config = { auto: true, default_duration: 6, ...config };
+    this._config = {
+      auto: true,
+      default_duration: 10,
+      show_programs: true,
+      ...config,
+    };
     if (!this.shadowRoot) {
       this.attachShadow({ mode: "open" });
     }
@@ -662,11 +1333,11 @@ class RainBirdIQ4CardEditor extends HTMLElement {
         textarea {
           background: var(--card-background-color);
           border: 1px solid var(--divider-color);
-          border-radius: 6px;
+          border-radius: 8px;
           box-sizing: border-box;
           color: var(--primary-text-color);
           font: inherit;
-          min-height: 36px;
+          min-height: 38px;
           padding: 8px 10px;
           width: 100%;
         }
@@ -692,15 +1363,19 @@ class RainBirdIQ4CardEditor extends HTMLElement {
         </div>
         <div>
           <label>Default duration, minutes</label>
-          <input data-key="default_duration" type="number" min="1" max="720" value="${this._escape(this._config.default_duration || 6)}">
+          <input data-key="default_duration" type="number" min="1" max="720" value="${this._escape(this._config.default_duration || 10)}">
         </div>
         <div>
-          <label>Controller ID to select by default</label>
-          <input data-key="controller_id" type="number" min="1" value="${this._escape(this._config.controller_id || "")}">
+          <label>Controller ID or prefix to select by default</label>
+          <input data-key="controller_id" value="${this._escape(this._config.controller_id || "")}">
         </div>
         <label class="check">
           <input data-key="auto" type="checkbox" ${this._config.auto !== false ? "checked" : ""}>
-          Auto-discover Rain Bird IQ4 station switches
+          Auto-discover Rain Bird IQ4 zones
+        </label>
+        <label class="check">
+          <input data-key="show_programs" type="checkbox" ${this._config.show_programs !== false ? "checked" : ""}>
+          Show program schedule
         </label>
         <div>
           <label>Station entities, one per line. Leave empty for auto-discovery.</label>
@@ -716,15 +1391,15 @@ class RainBirdIQ4CardEditor extends HTMLElement {
       input.addEventListener("change", () => {
         const key = input.dataset.key;
         const config = { ...this._config };
-        if (key === "auto") {
-          config.auto = input.checked;
-        } else if (key === "default_duration" || key === "controller_id") {
+        if (key === "auto" || key === "show_programs") {
+          config[key] = input.checked;
+        } else if (key === "default_duration") {
           const value = input.value === "" ? undefined : Number(input.value);
-          if (value === undefined) {
-            delete config[key];
-          } else {
-            config[key] = value;
-          }
+          if (value === undefined) delete config[key];
+          else config[key] = value;
+        } else if (key === "controller_id") {
+          if (input.value === "") delete config[key];
+          else config[key] = input.value;
         } else if (key === "entities") {
           const entities = input.value
             .split(/\n|,/)
@@ -763,5 +1438,5 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "rainbird-iq4-card",
   name: "Rain Bird IQ4",
-  description: "Control Rain Bird IQ4 stations with per-zone durations, rain delay, and stop-all.",
+  description: "Control Rain Bird IQ4 zones with per-zone durations and live schedule status.",
 });
